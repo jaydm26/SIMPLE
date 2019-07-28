@@ -1,7 +1,7 @@
 clear all
 clc
 
-Nx= 64;
+Nx= 3;
 rho= 1.0;
 visc= 0.01;
 alphaP= 0.5;
@@ -180,8 +180,8 @@ for i = 2:Nx+1
   end
 end
 
-uCenter = u(Nx/2+1, Ny/2+1);
-vCenter = v(Nx/2+1, Ny/2+1);
+% uCenter = u(Nx/2+1, Ny/2+1);
+% vCenter = v(Nx/2+1, Ny/2+1);
 
 uOld = u;
 vOld = v;
