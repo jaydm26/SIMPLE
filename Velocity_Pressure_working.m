@@ -2,6 +2,8 @@
 
 % Code written by Jay Mehta (July 2019).
 
+% Modified by Jay Mehta (November 15, 2019).
+
 %% Clear Everything
 clear all
 clc
@@ -50,32 +52,6 @@ domain.Y_e_y = Y_e_y;
 domain.X_c = X_c;
 domain.Y_c = Y_c;
 
-%% Create the L^-1 operator using Lattice Green's function (Liska, Colonius, 2016)
-
-% g_hat = L_inv(domain,"node");
-
-%% Setting up the Object
-
-R = 0.5;
-params.char_L = R;
-
-xc = 0;
-yc = 0;
-body_function = @(x,y) (x-xc)^2 + (y-yc)^2 - (R)^2;
-
-N_theta = floor(2*pi*R/dx);
-d_theta = 2*pi/N_theta;
-
-theta_range = 0:d_theta:2*pi-d_theta;
-
-xi = zeros(length(theta_range),1);
-eta = zeros(length(theta_range),1);
-
-for i = 1:length(theta_range)
-    xi(i) = xc + R*cos(theta_range(i));
-    eta(i) = yc + R*sin(theta_range(i));
-end
-
 %% Initializing the flow parameters
 
 U = 1;
@@ -83,35 +59,13 @@ V = 0;
 params.U = U;
 
 Re = 100;
-% nu = U * R / Re;
-nu = 0.01;
+nu = U * 1 / Re;
 params.nu = nu;
-
-Co = 2.5e-1;
-Fo = 5;
-dt = min([Fo * dx^2/nu,Co*dx]);
-params.dt = dt;
-
-Fo = nu * dt/dx^2;
-Co = dt/dx;
-
-params.Fo = Fo;
-params.Co = Co;
-
-t_steady = (2*R)^2/nu;
-tf = t_steady;
-time_range = 0:dt:tf;
 
 %% Pre-Allocate Memory
 
 velocity = EdgeData(Nx,Ny); % Velocity Field
 pressure = CellData(Nx,Ny);
-Fx = zeros(length(xi),1);
-Fy = zeros(length(eta),1);
-ub = zeros(length(xi),1); % X-component of Velocity on the body
-vb = zeros(length(eta),1); % Y-component of Velocity on the body
-Drag = 0;
-Lift = 0;
 
 a_p = EdgeData(Nx,Ny);
 a_e = EdgeData(Nx,Ny);
@@ -134,16 +88,16 @@ rhs = CellData(Nx,Ny);
 rf_p = 5e-1;
 rf_v = 5e-1;
 
-max_gs_iter = 100;
+max_gs_iter = 5;
 
 conv_x = 1;
 conv_y = 1;
-tol = 1e-6;
+tol = 1e-3;
 
 %% Apply Boundary Conditions
 
 uB = zeros(1,Nx+1);
-uT = ones(1,Nx+1);
+uT = U * ones(1,Nx+1);
 uL = zeros(1,Ny+2);
 uR = zeros(1,Ny+2);
 
@@ -158,7 +112,7 @@ velocity = apply_bc(bc,velocity);
 
 %% Solving
 
-for iter = 1:50
+for iter = 1:1000
     
     velocity_old = velocity;
     velocity_x_c = interpol(velocity_old,CellData(Nx,Ny),1);
@@ -241,22 +195,16 @@ for iter = 1:50
         end
     end
     
-%     A_p.x(2,2) = 1;
-%     A_e.x(2,2) = 0;
-%     A_w.x(2,2) = 0;
-%     A_n.x(2,2) = 0;
-%     A_s.x(2,2) = 0;
-%     rhs.x(2,2) = 0;
-    
     p_prime = CellData(Nx,Ny);
-    
-    for i = 2:Nx+1
-        for j = 2:Ny+1
-            p_prime.x(i,j) = (A_e.x(i,j) * p_prime.x(i+1,j)...
-                + A_w.x(i,j) * p_prime.x(i-1,j)...
-                + A_n.x(i,j) * p_prime.x(i,j+1)...
-                + A_s.x(i,j) * p_prime.x(i,j-1)...
-                + rhs.x(i,j)) / A_p.x(i,j);
+    for gs_iter = 1:max_gs_iter
+        for i = 2:Nx+1
+            for j = 2:Ny+1
+                p_prime.x(i,j) = (A_e.x(i,j) * p_prime.x(i+1,j)...
+                    + A_w.x(i,j) * p_prime.x(i-1,j)...
+                    + A_n.x(i,j) * p_prime.x(i,j+1)...
+                    + A_s.x(i,j) * p_prime.x(i,j-1)...
+                    + rhs.x(i,j)) / A_p.x(i,j);
+            end
         end
     end
     

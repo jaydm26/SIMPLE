@@ -127,18 +127,14 @@ A_n = CellData(Nx,Ny);
 A_s = CellData(Nx,Ny);
 
 p = CellData(Nx,Ny);
-p_prime = CellData(Nx,Ny);
-
-rhs = CellData(Nx,Ny);
 
 rf_p = 5e-1;
 rf_v = 5e-1;
 
-max_gs_iter = 100;
+max_gs_iter = 5;
 
-conv_x = 1;
-conv_y = 1;
-tol = 1e-6;
+con = 1;
+tol = 1e-2;
 
 %% Apply Boundary Conditions
 
@@ -158,7 +154,7 @@ velocity = apply_bc(bc,velocity);
 
 %% Solving
 
-while conv_x > tol || conv_y > tol
+for iter = 1:1000
     
     velocity_old = velocity;
     velocity_x_c = interpol(velocity_old,CellData(Nx,Ny),1);
@@ -168,29 +164,29 @@ while conv_x > tol || conv_y > tol
     
     for i = 2:Nx
         for j = 2:Ny+1
-            a_p.x(i,j) = (0.5 * dx * (velocity_x_c.x(i+1,j) - velocity_x_c.x(i,j))...
-                        + 0.5 * dx * (velocity_y_n.x(i,j) - velocity_y_n.x(i,j-1))...
-                        + 4*nu)/rf_v;
-            a_e.x(i,j) = -0.5 * dx * velocity_x_c.x(i+1,j) + nu;
-            a_w.x(i,j) = 0.5 * dx * velocity_x_c.x(i,j) + nu;
-            a_n.x(i,j) = -0.5 * dx * velocity_y_n.x(i,j) + nu;
-            a_s.x(i,j) = 0.5 * dx * velocity_y_n.x(i,j-1) + nu;
+            a_p.x(i,j) = (0.5/dx * (velocity_x_c.x(i+1,j) - velocity_x_c.x(i,j))...
+                        + 0.5/dx * (velocity_y_n.x(i,j) - velocity_y_n.x(i,j-1))...
+                        + 4*nu/dx^2)/rf_v;
+            a_e.x(i,j) = -0.5/dx * velocity_x_c.x(i+1,j) + nu/dx^2;
+            a_w.x(i,j) = 0.5/dx * velocity_x_c.x(i,j) + nu/dx^2;
+            a_n.x(i,j) = -0.5/dx * velocity_y_n.x(i,j) + nu/dx^2;
+            a_s.x(i,j) = 0.5/dx * velocity_y_n.x(i,j-1) + nu/dx^2;
             
-            d.x(i,j) = dx /a_p.x(i,j);
+            d.x(i,j) = 1/dx * 1/a_p.x(i,j);
         end
     end
     
     for i = 2:Nx+1
         for j = 2:Ny
-            a_p.y(i,j) = (0.5 * dx * (velocity_y_c.x(i,j+1) - velocity_y_c.x(i,j))...
-                        + 0.5 * dx * (velocity_x_n.x(i,j) - velocity_x_n.x(i-1,j))...
-                        + 4*nu)/rf_v;
-            a_e.y(i,j) = -0.5 * dx * velocity_x_n.x(i,j) + nu;
-            a_w.y(i,j) = 0.5 * dx * velocity_x_n.x(i-1,j) + nu;
-            a_n.y(i,j) = -0.5 * dx * velocity_y_c.x(i,j+1) + nu;
-            a_s.y(i,j) = 0.5 * dx * velocity_y_c.x(i,j) + nu;
+            a_p.y(i,j) = (0.5/dx * (velocity_y_c.x(i,j+1) - velocity_y_c.x(i,j))...
+                        + 0.5/dx * (velocity_x_n.x(i,j) - velocity_x_n.x(i-1,j))...
+                        + 4*nu/dx^2)/rf_v;
+            a_e.y(i,j) = -0.5/dx * velocity_x_n.x(i,j) + nu/dx^2;
+            a_w.y(i,j) = 0.5/dx * velocity_x_n.x(i-1,j) + nu/dx^2;
+            a_n.y(i,j) = -0.5/dx * velocity_y_c.x(i,j+1) + nu/dx^2;
+            a_s.y(i,j) = 0.5/dx * velocity_y_c.x(i,j) + nu/dx^2;
             
-            d.y(i,j) = dx /a_p.y(i,j);
+            d.y(i,j) = 1/dx * 1/a_p.y(i,j);
         end
     end
     
@@ -204,8 +200,8 @@ while conv_x > tol || conv_y > tol
                     + a_w.x(i,j) * velocity_star.x(i-1,j)...
                     + a_n.x(i,j) * velocity_star.x(i,j+1)...
                     + a_s.x(i,j) * velocity_star.x(i,j-1)...
-                    - dx * (p.x(i+1,j) - p.x(i,j))...
-                    + (1-rf_v) * a_p.x(i,j) * velocity_old.x(i,j)) / a_p.x(i,j);
+                    - 1/dx * (p.x(i+1,j) - p.x(i,j))...
+                    ) / a_p.x(i,j);
             end
         end
 
@@ -215,10 +211,12 @@ while conv_x > tol || conv_y > tol
                     + a_w.y(i,j) * velocity_star.y(i-1,j)...
                     + a_n.y(i,j) * velocity_star.y(i,j+1)...
                     + a_s.y(i,j) * velocity_star.y(i,j-1)...
-                    - dx * (p.x(i,j+1) - p.x(i,j))...
-                    + (1-rf_v) * a_p.y(i,j) * velocity_old.y(i,j)) / a_p.y(i,j);
+                    - 1/dx * (p.x(i,j+1) - p.x(i,j))...
+                    ) / a_p.y(i,j);
             end
         end
+        
+        velocity_star = apply_bc(bc,velocity_star);
         
         gs_conv(1) = max(max(abs(velocity_star.x-velocity_old.x)));
         gs_conv(2) = max(max(abs(velocity_star.y-velocity_old.y)));
@@ -227,7 +225,6 @@ while conv_x > tol || conv_y > tol
         
     end
     
-    rhs = CellData(Nx,Ny);
     for i = 2:Nx+1
         for j = 2:Ny+1
             A_p.x(i,j) = d.x(i,j) + d.x(i-1,j) + d.y(i,j) + d.y(i,j-1);
@@ -236,17 +233,11 @@ while conv_x > tol || conv_y > tol
             A_n.x(i,j) = d.y(i,j);
             A_s.x(i,j) = d.y(i,j-1);
             
+            rhs = CellData(Nx,Ny);
             rhs.x(i,j) = -velocity_star.x(i,j) + velocity_star.x(i-1,j)...
                 - velocity_star.y(i,j) + velocity_star.y(i,j-1);
         end
     end
-    
-%     A_p.x(2,2) = 1;
-%     A_e.x(2,2) = 0;
-%     A_w.x(2,2) = 0;
-%     A_n.x(2,2) = 0;
-%     A_s.x(2,2) = 0;
-%     rhs.x(2,2) = 0;
     
     p_prime = CellData(Nx,Ny);
     
@@ -269,10 +260,11 @@ while conv_x > tol || conv_y > tol
     velocity.x = velocity_star.x + velocity_prime.x;
     velocity.y = velocity_star.y + velocity_prime.y;
     
-    velocity = apply_bc(bc,velocity);
+    velocity.x = rf_v * velocity.x + (1-rf_v) * velocity_old.x;
+    velocity.y = rf_v * velocity.y + (1-rf_v) * velocity_old.y;
     
-    conv_x = norm(velocity_prime.x(2:Nx,2:Ny+1))/norm(velocity.x(2:Nx,2:Ny+1));
-    conv_y = norm(velocity_prime.y(2:Nx+1,2:Ny))/norm(velocity.y(2:Nx+1,2:Ny));
+    con = div(velocity);
+    con = 1/Nx * norm(con.x);
 end
 
 %% Post Processing
